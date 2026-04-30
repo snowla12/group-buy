@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小馨後台</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans TC', sans-serif; background: #f7f7f7; color: #222; }
+.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.login-box { background: #fff; border-radius: 14px; border: 1px solid #eee; padding: 32px; width: 320px; }
+.login-box h2 { font-size: 18px; font-weight: 700; margin-bottom: 20px; text-align: center; }
+.layout { display: flex; min-height: 100vh; }
+.sidebar { width: 200px; background: #222; color: #fff; padding: 20px 0; flex-shrink: 0; position: sticky; top: 0; height: 100vh; }
+.sidebar-title { font-size: 14px; font-weight: 600; padding: 0 20px 16px; border-bottom: 1px solid #333; }
+.sidebar-menu { list-style: none; margin-top: 8px; }
+.sidebar-menu li { padding: 10px 20px; font-size: 13px; cursor: pointer; color: #bbb; }
+.sidebar-menu li:hover, .sidebar-menu li.active { background: #333; color: #fff; }
+.main { flex: 1; padding: 24px; overflow-y: auto; }
+.card { background: #fff; border-radius: 12px; border: 1px solid #eee; padding: 20px; margin-bottom: 16px; }
+.card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+.section { display: none; }
+.section.active { display: block; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-row.full { grid-template-columns: 1fr; }
+.form-group label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 9px 11px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #222; }
+.btn { padding: 9px 18px; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; font-weight: 500; }
+.btn-primary { background: #222; color: #fff; }
+.btn-primary:hover { background: #444; }
+.btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; border: 1px solid #ddd; background: none; cursor: pointer; }
+.btn-sm:hover { background: #f5f5f5; }
+.btn-danger { color: #e84444; border-color: #e84444; }
+.btn-danger:hover { background: #fff0f0; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #f7f7f7; padding: 10px 12px; text-align: left; font-weight: 500; color: #666; border-bottom: 1px solid #eee; }
+td { padding: 10px 12px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
+tr:hover td { background: #fafafa; }
+.status-select { font-size: 12px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 6px; }
+.badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; cursor: pointer; }
+.badge-green { background: #e8f4e8; color: #2d7a2d; }
+.badge-red { background: #fce8e8; color: #c0392b; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stat-card { background: #f7f7f7; border-radius: 10px; padding: 14px; }
+.stat-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+.stat-value { font-size: 22px; font-weight: 700; }
+.fee-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; gap: 8px; flex-wrap: wrap; }
+.fee-input { width: 90px; padding: 5px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; text-align: right; }
+.loading { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: opacity 0.3s; z-index: 999; pointer-events: none; }
+.toast.show { opacity: 1; }
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; }
+.modal.open { display: flex; }
+.modal-box { background: #fff; border-radius: 14px; padding: 24px; width: 500px; max-width: 94vw; max-height: 90vh; overflow-y: auto; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.modal-title { font-size: 16px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- 登入 -->
+<div class="login-wrap" id="login-wrap">
+  <div class="login-box">
+    <h2>小馨後台登入</h2>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>密碼</label>
+      <input type="password" id="login-pwd" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary" style="width:100%;" onclick="doLogin()">登入</button>
+  </div>
+</div>
+
+<!-- 主介面 -->
+<div class="layout" id="main-layout" style="display:none;">
+  <div class="sidebar">
+    <div class="sidebar-title">小馨後台</div>
+    <ul class="sidebar-menu">
+      <li class="active" onclick="switchTab('orders',this)">訂單管理</li>
+      <li onclick="switchTab('fee',this)">國際運費</li>
+      <li onclick="switchTab('groups',this)">團管理</li>
+      <li onclick="switchTab('products',this)">商品管理</li>
+      <li onclick="switchTab('rules',this)">團購規則</li>
+    </ul>
+  </div>
+  <div class="main">
+
+    <!-- 訂單管理 -->
+    <div class="section active" id="tab-orders">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div class="card-title" style="margin:0;">訂單管理</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <select id="order-filter-group" class="status-select" onchange="loadOrders()">
+              <option value="">全部團</option>
+            </select>
+            <select id="order-filter-paid" class="status-select" onchange="loadOrders()">
+              <option value="">全部付款狀態</option>
+              <option value="FALSE">未付款</option>
+              <option value="TRUE">已付款</option>
+            </select>
+            <button class="btn-sm" onclick="exportExcel()">匯出 Excel</button>
+          </div>
+        </div>
+        <div class="stats-grid" id="order-stats"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>姓名</th><th>手機</th><th>商品</th>
+              <th>商品金額</th><th>國際運費</th><th>合計</th>
+              <th>付款狀態</th><th>下單時間</th><th>操作</th>
+            </tr></thead>
+            <tbody id="orders-tbody"><tr><td colspan="9" class="loading">載入中...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 國際運費 -->
+    <div class="section" id="tab-fee">
+      <div class="card">
+        <div class="card-title">國際運費攤分</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>選擇團</label>
+            <select id="fee-group-select"></select>
+          </div>
+          <div class="form-group">
+            <label>攤分方式</label>
+            <select id="fee-method">
+              <option value="件數">依件數平均</option>
+              <option value="金額">依金額佔比</option>
+              <option value="重量">依重量計算</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>國際運費總額（台幣）</label>
+            <input type="number" id="fee-total" placeholder="例如：1200">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="calcFee()">計算預覽</button>
+        <div id="fee-preview" style="display:none;margin-top:16px;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:10px;">攤分預覽（可手動調整）</div>
+          <div id="fee-rows"></div>
+          <div style="margin-top:14px;display:flex;gap:10px;">
+            <button class="btn btn-primary" onclick="confirmFee()">確認並儲存</button>
+            <button class="btn-sm" onclick="document.getElementById('fee-preview').style.display='none'">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 團管理 -->
+    <div class="section" id="tab-groups">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">新增團</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>團名稱</label>
+            <input type="text" id="g-name" placeholder="例如：2024-05 藥妝團">
+          </div>
+          <div class="form-group">
+            <label>截單日</label>
+            <input type="date" id="g-deadline">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addGroup()">建立此團</button>
+      </div>
+      <div class="card">
+        <div class="card-title">所有團</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>團名</th><th>截單日</th><th>進度</th><th>開放下單</th></tr></thead>
+            <tbody id="groups-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 商品管理 -->
+    <div class="section" id="tab-products">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">新增商品</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>所屬團</label>
+            <select id="p-group"></select>
+          </div>
+          <div class="form-group">
+            <label>商品名稱</label>
+            <input type="text" id="p-name" placeholder="商品名稱">
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="form-group">
+            <label>商品說明（選填）</label>
+            <input type="text" id="p-desc" placeholder="簡短說明">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>台幣售價</label>
+            <input type="number" id="p-price" placeholder="例如：88">
+          </div>
+          <div class="form-group">
+            <label>限購數量（0 = 無限制）</label>
+            <input type="number" id="p-maxqty" placeholder="0">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>重量 g（選填，用於重量攤分）</label>
+            <input type="number" id="p-weight" placeholder="例如：150">
+          </div>
+          <div class="form-group">
+            <label>規格選項（逗號分隔）</label>
+            <input type="text" id="p-variants" placeholder="例如：草莓,原味,薄荷">
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="form-group">
+            <label>商品圖片（選填）</label>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <input type="file" id="p-img-file" accept="image/*" onchange="previewImage(this)" style="font-size:13px;">
+              <span id="p-img-status" style="font-size:12px;color:#888;"></span>
+            </div>
+            <div id="p-img-preview" style="margin-top:8px;display:none;">
+              <img id="p-img-preview-img" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #eee;">
+            </div>
+            <input type="hidden" id="p-img-url">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addProduct()">新增商品</button>
+      </div>
+      <div class="card">
+        <div class="card-title">商品列表</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>所屬團</th><th>商品名</th><th>台幣價</th><th>限購</th><th>規格</th><th>操作</th></tr></thead>
+            <tbody id="products-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 團購規則 -->
+    <div class="section" id="tab-rules">
+      <div class="card">
+        <div class="card-title">團購須知</div>
+        <p style="font-size:13px;color:#888;margin-bottom:12px;">儲存後會顯示在購物頁首頁，讓團員下單前看到。</p>
+        <div class="form-group form-row full">
+          <textarea id="rules-content" rows="14" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;line-height:1.8;resize:vertical;" placeholder="例如：&#10;1. 本團為代購，價格已含服務費&#10;2. 下單後不接受取消&#10;3. 國際運費到貨後另行通知&#10;4. 付款：匯款後截圖回傳給小馨"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="saveRules()">儲存規則</button>
+        <span id="rules-save-status" style="font-size:12px;color:#888;margin-left:12px;"></span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 編輯商品 Modal -->
+<div class="modal" id="edit-modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title">編輯商品</div>
+      <button class="btn-sm" onclick="closeEditModal()">關閉</button>
+    </div>
+    <input type="hidden" id="edit-product-id">
+    <div class="form-row">
+      <div class="form-group">
+        <label>商品名稱</label>
+        <input type="text" id="edit-p-name">
+      </div>
+      <div class="form-group">
+        <label>台幣售價</label>
+        <input type="number" id="edit-p-price">
+      </div>
+    </div>
+    <div class="form-row full">
+      <div class="form-group">
+        <label>商品說明</label>
+        <input type="text" id="edit-p-desc">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>限購數量</label>
+        <input type="number" id="edit-p-maxqty">
+      </div>
+      <div class="form-group">
+        <label>重量 g</label>
+        <input type="number" id="edit-p-weight">
+      </div>
+    </div>
+    <div class="form-row full">
+      <div class="form-group">
+        <label>規格（逗號分隔）</label>
+        <input type="text" id="edit-p-variants">
+      </div>
+    </div>
+    <div class="form-row full">
+      <div class="form-group">
+        <label>更換圖片（選填）</label>
+        <input type="file" id="edit-p-img-file" accept="image/*" onchange="previewEditImage(this)" style="font-size:13px;">
+        <span id="edit-p-img-status" style="font-size:12px;color:#888;"></span>
+        <div id="edit-p-img-preview" style="margin-top:8px;">
+          <img id="edit-p-img-preview-img" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #eee;display:none;">
+        </div>
+        <input type="hidden" id="edit-p-img-url">
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:4px;" onclick="saveEditProduct()">儲存</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycby3L_MhTFDkFGt0HcBPfd83jfifmKZewNdXK2Sw5OQ8gcebwkIBWsTOSYEXOG7gylR1/exec';
+let allGroups = [], allOrders = [], feePreviewData = [];
+
+async function api(params) {
+  const url = new URL(API_URL);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
+  const res = await fetch(url);
+  return res.json();
+}
+
+async function apiPost(data) {
+  const url = new URL(API_URL);
+  url.searchParams.set('action', data.action);
+  url.searchParams.set('data', encodeURIComponent(JSON.stringify(data)));
+  const res = await fetch(url);
+  return res.json();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function fmtPhone(p) {
+  const s = String(p);
+  return s.length === 9 ? '0' + s : s;
+}
+
+// ===== 登入 =====
+async function doLogin() {
+  const pwd = document.getElementById('login-pwd').value;
+  const res = await apiPost({ action: 'adminLogin', password: pwd });
+  if (res.success) {
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('main-layout').style.display = 'flex';
+    initAdmin();
+  } else {
+    showToast('密碼錯誤');
+  }
+}
+
+async function initAdmin() {
+  const groups = await api({ action: 'getGroups' });
+  allGroups = Array.isArray(groups) ? groups : [];
+  ['order-filter-group','fee-group-select','p-group'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const empty = id === 'order-filter-group' ? '<option value="">全部團</option>' : '';
+    el.innerHTML = empty + allGroups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('');
+  });
+  loadOrders();
+  loadGroupsTable();
+  loadProductsTable();
+}
+
+// ===== Tab =====
+function switchTab(name, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sidebar-menu li').forEach(l => l.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (el) el.classList.add('active');
+  if (name === 'rules') loadRules();
+}
+
+// ===== 訂單 =====
+async function loadOrders() {
+  document.getElementById('orders-tbody').innerHTML = '<tr><td colspan="9" class="loading">載入中...</td></tr>';
+  const groupFilter = document.getElementById('order-filter-group').value;
+  const paidFilter = document.getElementById('order-filter-paid').value;
+  const orders = await api({ action: 'getAllOrders' });
+  allOrders = Array.isArray(orders) ? orders : [];
+  let filtered = allOrders;
+  if (groupFilter) filtered = filtered.filter(o => o.group_id === groupFilter);
+  if (paidFilter === 'TRUE') filtered = filtered.filter(o => o.paid === true || o.paid === 'TRUE');
+  if (paidFilter === 'FALSE') filtered = filtered.filter(o => o.paid !== true && o.paid !== 'TRUE');
+
+  const totalAmt = filtered.reduce((s,o) => s + parseFloat(o.total_twd||0), 0);
+  const unpaid = filtered.filter(o => o.paid !== true && o.paid !== 'TRUE').length;
+  document.getElementById('order-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">訂單數</div><div class="stat-value">${filtered.length}</div></div>
+    <div class="stat-card"><div class="stat-label">未付款</div><div class="stat-value" style="color:#e84444;">${unpaid}</div></div>
+    <div class="stat-card"><div class="stat-label">總金額</div><div class="stat-value">NT$${Math.round(totalAmt).toLocaleString()}</div></div>
+  `;
+
+  if (!filtered.length) {
+    document.getElementById('orders-tbody').innerHTML = '<tr><td colspan="9" class="loading">無訂單</td></tr>';
+    return;
+  }
+
+  document.getElementById('orders-tbody').innerHTML = filtered.map(o => {
+    const items = JSON.parse(o.items_json || '[]');
+    const itemsText = items.map(i => `${i.name}${i.variant?'/'+i.variant:''} x${i.qty}`).join('<br>');
+    const isPaid = o.paid === true || o.paid === 'TRUE';
+    const intl = parseFloat(o.intl_fee_share) || 0;
+    return `<tr>
+      <td>${o.name}</td>
+      <td>${fmtPhone(o.phone)}</td>
+      <td style="font-size:12px;">${itemsText}</td>
+      <td>NT$${parseFloat(o.subtotal_twd).toLocaleString()}</td>
+      <td>${intl ? 'NT$'+intl.toLocaleString() : '待追加'}</td>
+      <td style="font-weight:600;">NT$${parseFloat(o.total_twd).toLocaleString()}</td>
+      <td><span class="badge ${isPaid?'badge-green':'badge-red'}" onclick="togglePaid('${o.order_id}',${isPaid})">${isPaid?'已付款':'未付款'}</span></td>
+      <td style="font-size:11px;color:#aaa;">${o.created_at ? new Date(o.created_at).toLocaleDateString('zh-TW') : ''}</td>
+      <td><button class="btn-sm btn-danger" onclick="deleteOrder('${o.order_id}','${o.name}')">刪除</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function togglePaid(orderId, currentPaid) {
+  const res = await apiPost({ action: 'updatePaid', order_id: orderId, paid: !currentPaid });
+  if (res.success) { showToast('付款狀態已更新'); loadOrders(); }
+  else showToast('更新失敗');
+}
+
+async function deleteOrder(orderId, name) {
+  if (!confirm(`確定要刪除「${name}」的訂單嗎？`)) return;
+  const res = await apiPost({ action: 'deleteOrder', order_id: orderId });
+  if (res.success) { showToast('訂單已刪除'); loadOrders(); }
+  else showToast('刪除失敗：' + (res.error||''));
+}
+
+function exportExcel() {
+  const rows = [['姓名','手機','商品','商品金額','國際運費','合計','付款狀態']];
+  allOrders.forEach(o => {
+    const items = JSON.parse(o.items_json||'[]');
+    rows.push([o.name, fmtPhone(o.phone),
+      items.map(i=>`${i.name}${i.variant?'/'+i.variant:''} x${i.qty}`).join(' / '),
+      o.subtotal_twd, o.intl_fee_share||0, o.total_twd,
+      (o.paid===true||o.paid==='TRUE')?'已付款':'未付款'
+    ]);
+  });
+  const csv = rows.map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '訂單匯出.csv';
+  a.click();
+}
+
+// ===== 國際運費 =====
+async function calcFee() {
+  const groupId = document.getElementById('fee-group-select').value;
+  const method = document.getElementById('fee-method').value;
+  const total = document.getElementById('fee-total').value;
+  if (!total) { showToast('請輸入運費總額'); return; }
+  const res = await apiPost({ action: 'calcIntlFee', group_id: groupId, total_fee_twd: total, method });
+  if (res.error) { showToast(res.error); return; }
+  feePreviewData = res.preview;
+  document.getElementById('fee-rows').innerHTML = feePreviewData.map((r, idx) => `
+    <div class="fee-row">
+      <span>${r.name}（${fmtPhone(r.phone)}）</span>
+      <span style="font-size:12px;color:#888;">小計 NT$${parseFloat(r.subtotal_twd).toLocaleString()}</span>
+      <span>國際運費 <input class="fee-input" type="number" value="${r.intl_fee_share}" id="fee-val-${idx}" onchange="updateFeeTotal(${idx})"></span>
+      <span style="font-size:13px;font-weight:600;" id="fee-total-${idx}">合計 NT$${r.total_twd.toLocaleString()}</span>
+    </div>`).join('');
+  document.getElementById('fee-preview').style.display = 'block';
+}
+
+function updateFeeTotal(idx) {
+  const intl = parseFloat(document.getElementById('fee-val-'+idx).value) || 0;
+  feePreviewData[idx].intl_fee_share = intl;
+  const total = parseFloat(feePreviewData[idx].subtotal_twd) + intl;
+  feePreviewData[idx].total_twd = total;
+  document.getElementById('fee-total-'+idx).textContent = '合計 NT$' + Math.round(total).toLocaleString();
+}
+
+async function confirmFee() {
+  const groupId = document.getElementById('fee-group-select').value;
+  const method = document.getElementById('fee-method').value;
+  const total = document.getElementById('fee-total').value;
+  const updates = feePreviewData.map(r => ({ order_id: r.order_id, intl_fee_share: r.intl_fee_share }));
+  const res = await apiPost({ action: 'updateIntlFee', group_id: groupId, total_fee_twd: total, method, updates });
+  if (res.success) { showToast('國際運費已儲存'); document.getElementById('fee-preview').style.display='none'; loadOrders(); }
+  else showToast('儲存失敗');
+}
+
+// ===== 團管理 =====
+async function addGroup() {
+  const name = document.getElementById('g-name').value.trim();
+  const deadline = document.getElementById('g-deadline').value;
+  if (!name || !deadline) { showToast('請填寫必要欄位'); return; }
+  const res = await apiPost({ action: 'addGroup', name, deadline, exchange_rate: 1, domestic_fee: 0 });
+  if (res.success) { showToast('團已建立'); await initAdmin(); switchTab('groups'); }
+  else showToast('建立失敗');
+}
+
+async function loadGroupsTable() {
+  const tbody = document.getElementById('groups-tbody');
+  if (!allGroups.length) { tbody.innerHTML = '<tr><td colspan="4" class="loading">無資料</td></tr>'; return; }
+  tbody.innerHTML = allGroups.map(g => `<tr>
+    <td>${g.name}</td>
+    <td>${g.deadline ? new Date(g.deadline).toLocaleDateString('zh-TW') : ''}</td>
+    <td><select class="status-select" onchange="updateGroupStatus('${g.group_id}',this.value)">
+      ${['開團中','已截止','已下單','官方發貨','已集貨','已到台灣','已通知發貨'].map(s=>`<option ${g.status===s?'selected':''}>${s}</option>`).join('')}
+    </select></td>
+    <td><select class="status-select" onchange="toggleGroup('${g.group_id}',this.value)">
+      <option value="open" ${g.is_open==='open'||g.is_open===true||g.is_open==='TRUE'?'selected':''}>開放下單</option>
+      <option value="closed" ${g.is_open==='closed'?'selected':''}>已截單</option>
+      <option value="offline" ${g.is_open==='offline'?'selected':''}>下架</option>
+    </select></td>
+  </tr>`).join('');
+}
+
+async function updateGroupStatus(groupId, status) {
+  const res = await apiPost({ action: 'updateStatus', group_id: groupId, status });
+  if (res.success) showToast('進度已更新');
+}
+
+async function toggleGroup(groupId, val) {
+  const isOpen = val === 'offline' ? 'offline' : val === 'closed' ? 'closed' : 'open';
+  const res = await apiPost({ action: 'toggleGroup', group_id: groupId, is_open: isOpen });
+  if (res.success) showToast('狀態已更新');
+}
+
+// ===== 商品管理 =====
+function previewImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('p-img-status').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('p-img-preview-img').src = e.target.result;
+    document.getElementById('p-img-preview').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadImageToDrive(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async e => {
+      const base64 = e.target.result.split(',')[1];
+      try {
+        // 用真正的 POST 傳送圖片（base64 太大不能用 GET）
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'uploadImage', filename: file.name, mimeType: file.type, base64 })
+        });
+        const data = await res.json();
+        if (data.error) reject(data.error);
+        else resolve(data.url);
+      } catch(e) {
+        reject(e.message);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addProduct() {
+  const groupId = document.getElementById('p-group').value;
+  const name = document.getElementById('p-name').value.trim();
+  const desc = document.getElementById('p-desc').value.trim();
+  const price = document.getElementById('p-price').value;
+  const maxqty = document.getElementById('p-maxqty').value;
+  const weight = document.getElementById('p-weight').value;
+  const variants = document.getElementById('p-variants').value.trim();
+  const imgFile = document.getElementById('p-img-file').files[0];
+  if (!groupId || !name || !price) { showToast('請填寫必要欄位'); return; }
+
+  let imgUrl = '';
+  const status = document.getElementById('p-img-status');
+  if (imgFile) {
+    status.textContent = '上傳圖片中...';
+    try { imgUrl = await uploadImageToDrive(imgFile); status.textContent = '圖片上傳成功'; }
+    catch(e) { showToast('圖片上傳失敗，以無圖片儲存'); status.textContent = ''; }
+  }
+
+  const res = await apiPost({ action: 'addProduct', group_id: groupId, name, description: desc, image_url: imgUrl, price_jpy: price, max_qty: maxqty||0, weight_g: weight||0, variants });
+  if (res.success) {
+    showToast('商品已新增');
+    document.getElementById('p-img-file').value = '';
+    document.getElementById('p-img-preview').style.display = 'none';
+    status.textContent = '';
+    loadProductsTable();
+  } else showToast('新增失敗');
+}
+
+async function loadProductsTable() {
+  const products = await api({ action: 'getProducts' });
+  const all = Array.isArray(products) ? products : [];
+  const tbody = document.getElementById('products-tbody');
+  if (!all.length) { tbody.innerHTML = '<tr><td colspan="6" class="loading">無商品</td></tr>'; return; }
+  tbody.innerHTML = all.map(p => {
+    const group = allGroups.find(g => g.group_id === p.group_id);
+    const thumb = p.image_url ? `<img src="${p.image_url}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;margin-right:6px;vertical-align:middle;">` : '';
+    return `<tr>
+      <td>${group?.name||p.group_id}</td>
+      <td>${thumb}${p.name}<br><span style="font-size:11px;color:#aaa;">${p.description||''}</span></td>
+      <td>NT$${parseInt(p.price_jpy).toLocaleString()}</td>
+      <td>${p.max_qty||'無限制'}</td>
+      <td>${p.variants||'-'}</td>
+      <td>
+        <button class="btn-sm" onclick='openEditProduct(${JSON.stringify(p).replace(/'/g,"&#39;")})'>編輯</button>
+        <button class="btn-sm btn-danger" style="margin-top:4px;" onclick="deleteProduct('${p.product_id}','${p.name}')">刪除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openEditProduct(p) {
+  document.getElementById('edit-product-id').value = p.product_id;
+  document.getElementById('edit-p-name').value = p.name||'';
+  document.getElementById('edit-p-price').value = p.price_jpy||'';
+  document.getElementById('edit-p-desc').value = p.description||'';
+  document.getElementById('edit-p-maxqty').value = p.max_qty||0;
+  document.getElementById('edit-p-weight').value = p.weight_g||0;
+  document.getElementById('edit-p-variants').value = p.variants||'';
+  document.getElementById('edit-p-img-url').value = p.image_url||'';
+  const img = document.getElementById('edit-p-img-preview-img');
+  if (p.image_url) { img.src = p.image_url; img.style.display='block'; }
+  else img.style.display='none';
+  document.getElementById('edit-p-img-file').value='';
+  document.getElementById('edit-p-img-status').textContent='';
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); }
+
+function previewEditImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  const img = document.getElementById('edit-p-img-preview-img');
+  reader.onload = e => { img.src = e.target.result; img.style.display='block'; };
+  reader.readAsDataURL(file);
+  document.getElementById('edit-p-img-status').textContent = file.name;
+}
+
+async function saveEditProduct() {
+  const productId = document.getElementById('edit-product-id').value;
+  const imgFile = document.getElementById('edit-p-img-file').files[0];
+  const status = document.getElementById('edit-p-img-status');
+  let imgUrl = document.getElementById('edit-p-img-url').value;
+  if (imgFile) {
+    status.textContent = '上傳中...';
+    try { imgUrl = await uploadImageToDrive(imgFile); status.textContent = '上傳成功'; }
+    catch(e) { showToast('圖片上傳失敗，保留原圖'); }
+  }
+  const res = await apiPost({ action: 'editProduct', product_id: productId,
+    name: document.getElementById('edit-p-name').value.trim(),
+    description: document.getElementById('edit-p-desc').value.trim(),
+    image_url: imgUrl,
+    price_jpy: document.getElementById('edit-p-price').value,
+    max_qty: document.getElementById('edit-p-maxqty').value||0,
+    weight_g: document.getElementById('edit-p-weight').value||0,
+    variants: document.getElementById('edit-p-variants').value.trim()
+  });
+  if (res.success) { showToast('商品已更新'); closeEditModal(); loadProductsTable(); }
+  else showToast('更新失敗：'+(res.error||''));
+}
+
+async function deleteProduct(productId, name) {
+  if (!confirm(`確定要刪除「${name}」嗎？`)) return;
+  const res = await apiPost({ action: 'deleteProduct', product_id: productId });
+  if (res.success) { showToast('商品已刪除'); loadProductsTable(); }
+  else showToast('刪除失敗');
+}
+
+// ===== 團購規則 =====
+async function loadRules() {
+  try {
+    const res = await api({ action: 'getSetting', key: 'group_rules' });
+    document.getElementById('rules-content').value = res?.value || '';
+  } catch(e) { console.log('loadRules error:', e); }
+}
+
+async function saveRules() {
+  const rulesText = document.getElementById('rules-content').value;
+  const status = document.getElementById('rules-save-status');
+  status.textContent = '儲存中...';
+  const res = await apiPost({ action: 'updateSetting', key: 'group_rules', value: rulesText });
+  if (res.success) { status.textContent = '已儲存 ✓'; setTimeout(()=>status.textContent='', 3000); }
+  else status.textContent = '儲存失敗';
+}
+</script>
+</body>
+</html>
